@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  database:
+    container_name: kupipodariday-database
+    image: postgres:16-alpine
+    restart: always
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: ${POSTGRES_PGDATA}
+    volumes:
+      - postgres_data:${POSTGRES_PGDATA}
+    networks:
+      - kupipodariday-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    container_name: kupipodariday-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: database
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PGDATA: ${POSTGRES_PGDATA}
+      JWT_SECRET: ${JWT_SECRET}
+      PORT: 4000
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - kupipodariday-network
+
+  frontend:
+    container_name: kupipodariday-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "8081:80"
+    networks:
+      - kupipodariday-network
+
+networks:
+  kupipodariday-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
